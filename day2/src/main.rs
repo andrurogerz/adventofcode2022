@@ -8,15 +8,15 @@ fn calculate_score(lines : impl Iterator<Item = io::Result<String>>) -> u64 {
     assert_eq!(chars.len(), 3);
     assert_eq!(chars[1], ' ');
     let round_score = match (chars[0], chars[2]) {
-      ('A', 'X') => { 1 + 3 }, // them:rock, me:rock
-      ('A', 'Y') => { 2 + 6 }, // them:rock, me:paper
-      ('A', 'Z') => { 3 + 0 }, // them:rock, me:scissors
-      ('B', 'X') => { 1 + 0 }, // them:paper, me:rock
-      ('B', 'Y') => { 2 + 3 }, // them:paper, me:paper
-      ('B', 'Z') => { 3 + 6 }, // them:paper, me:scissors
-      ('C', 'X') => { 1 + 6 }, // them:scissors, me:rock
-      ('C', 'Y') => { 2 + 0 }, // them:scissors, me:paper
-      ('C', 'Z') => { 3 + 3 }, // them:scissors, me:scissors
+      ('A', 'X') => { 3 + 0 }, // them:rock, me:lose (scissors)
+      ('A', 'Y') => { 1 + 3 }, // them:rock, me:draw (rock)
+      ('A', 'Z') => { 2 + 6 }, // them:rock, me:win (paper)
+      ('B', 'X') => { 1 + 0 }, // them:paper, me:lose (rock)
+      ('B', 'Y') => { 2 + 3 }, // them:paper, me:draw (paper)
+      ('B', 'Z') => { 3 + 6 }, // them:paper, me:win (scissors)
+      ('C', 'X') => { 2 + 0 }, // them:scissors, me:lose (paper)
+      ('C', 'Y') => { 3 + 3 }, // them:scissors, me:draw (scissors)
+      ('C', 'Z') => { 1 + 6 }, // them:scissors, me:win (rock)
       (a, b) => {
         // Assume only well-structure input.
         panic!("invalid input: ({}, {})", a, b);
@@ -29,5 +29,5 @@ fn calculate_score(lines : impl Iterator<Item = io::Result<String>>) -> u64 {
 
 fn main() {
   let score = calculate_score(io::stdin().lines());
-  println!("part 1: {}", score);
+  println!("part 2: {}", score);
 }
