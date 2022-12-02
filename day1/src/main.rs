@@ -1,7 +1,7 @@
 use std::io;
 
-fn max_group_sum(lines : impl Iterator<Item = io::Result<String>>) -> u64 {
-  let mut max_sum : u64 = 0;
+fn group_sums(lines : impl Iterator<Item = io::Result<String>>) -> Vec<u64> {
+  let mut sums : Vec<u64> = Vec::new();
   let mut cur_sum : u64 = 0;
   for line in lines {
     match line.unwrap().parse::<u64>() {
@@ -11,17 +11,18 @@ fn max_group_sum(lines : impl Iterator<Item = io::Result<String>>) -> u64 {
       Err(_) => {
         // We are assuming only well-structured input, so integer parse errors
         // indicate line break between groups of integers.
-        if cur_sum > max_sum {
-          max_sum = cur_sum;
-        }
+        sums.push(cur_sum);
         cur_sum = 0;
       }
     }
   }
-  max_sum
+  sums.sort();
+  sums.reverse();
+  sums
 }
 
 fn main() {
-  let max_sum = max_group_sum(io::stdin().lines());
-  println!("{}", max_sum);
+  let sums = group_sums(io::stdin().lines());
+  println!("part 1: {}", sums[0]);
+  println!("part 2: {}", sums[0] + sums[1] + sums[2]);
 }
