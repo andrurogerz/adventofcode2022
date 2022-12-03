@@ -18,8 +18,12 @@ fn count_items(items : &[char], item_counts : &mut [u32; 256]) {
   }
 }
 
-fn sum_priorities(lines : impl Iterator<Item = io::Result<String>>) -> u64 {
+fn sum_priorities(lines : impl Iterator<Item = io::Result<String>>) -> (u64, u64) {
   let mut priority : u64 = 0;
+  let mut badge_priority : u64 = 0;
+  let mut group_index : usize = 0;
+  let mut group_counts : [[u32; 256]; 3] = [[0; 256]; 3];
+
   for line in lines {
     let chars : Vec<char> = line.unwrap().chars().collect();
     let len = chars.len();
@@ -43,12 +47,31 @@ fn sum_priorities(lines : impl Iterator<Item = io::Result<String>>) -> u64 {
         priority += item_priority(i as char) as u64;
       }
     }
+
+    count_items(&chars, &mut group_counts[group_index]);
+
+    group_index += 1;
+    if group_index == 3 {
+      for i in 0u8..255u8 {
+        if group_counts[0][i as usize] > 0 &&
+           group_counts[1][i as usize] > 0 &&
+           group_counts[2][i as usize] > 0 {
+          badge_priority += item_priority(i as char) as u64;
+        }
+      }
+      group_counts = [[0 ; 256] ; 3];
+      group_index = 0;
+    }
   }
 
-  priority 
+  // Expect no leftover lines, must be 3 per group.
+  assert_eq!(group_index, 0);
+
+  (priority, badge_priority)
 }
 
 fn main() {
-  let sum = sum_priorities(io::stdin().lines());
-  println!("part 1: {}", sum);
+  let (priority, badge_priority) = sum_priorities(io::stdin().lines());
+  println!("part 1: {}", priority);
+  println!("part 2: {}", badge_priority);
 }
