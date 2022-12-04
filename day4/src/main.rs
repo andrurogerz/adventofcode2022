@@ -25,12 +25,22 @@ fn parse_ranges(lines : impl Iterator<Item = io::Result<String>>) -> Vec<[(usize
   range_pairs
 }
 
-fn count_fully_contained_range_pairs(range_pairs : Vec<[(usize, usize); 2]>) -> usize {
+fn count_fully_contained_range_pairs(range_pairs : &Vec<[(usize, usize); 2]>) -> usize {
   let mut count = 0usize;
   for entry in range_pairs {
     if (entry[0].0 >= entry[1].0 && entry[0].1 <= entry[1].1) ||
        (entry[1].0 >= entry[0].0 && entry[1].1 <= entry[0].1) {
-      println!("{:?}", entry);
+      count += 1;
+    }
+  }
+
+  count
+}
+
+fn count_overlapping_range_pairs(range_pairs : &Vec<[(usize, usize); 2]>) -> usize {
+  let mut count = 0usize;
+  for entry in range_pairs {
+    if entry[0].0 <= entry[1].1 && entry[1].0 <= entry[0].1 {
       count += 1;
     }
   }
@@ -40,6 +50,9 @@ fn count_fully_contained_range_pairs(range_pairs : Vec<[(usize, usize); 2]>) -> 
 
 fn main() {
   let range_pairs = parse_ranges(io::stdin().lines());
-  let count = count_fully_contained_range_pairs(range_pairs);
+  let count = count_fully_contained_range_pairs(&range_pairs);
   println!("part 1: {}", count);
+
+  let count = count_overlapping_range_pairs(&range_pairs);
+  println!("part 2: {}", count);
 }
