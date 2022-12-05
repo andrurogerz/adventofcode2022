@@ -73,8 +73,14 @@ fn execute_actions(stacks : &mut Vec<Vec<char>>, lines : &mut impl Iterator<Item
     assert!(source_idx < stacks.len());
     assert!(dest_idx < stacks.len());
 
+    let mut tmp_stack = Vec::with_capacity(count);
     for _i in 0..count {
       let item = stacks[source_idx].pop().unwrap();
+      tmp_stack.push(item);
+    }
+
+    for _i in 0..count {
+      let item = tmp_stack.pop().unwrap();
       stacks[dest_idx].push(item);
     }
   }
@@ -98,5 +104,5 @@ fn main() {
     result.push(*stack.last().unwrap());
   }
 
-  println!("part 1: {}", result);
+  println!("part 2: {}", result);
 }
