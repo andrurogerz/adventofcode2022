@@ -1,3 +1,4 @@
+use std::cmp;
 use std::collections::HashMap;
 use std::io;
 
@@ -71,13 +72,48 @@ fn parse_commands(lines : impl Iterator<Item = io::Result<String>>) -> HashMap<S
   dirs
 }
 
-fn main() {
-  let dirs = parse_commands(io::stdin().lines());
-  let mut part_1 = 0usize;
+fn find_target_dir_size(dirs : &HashMap<String, usize>) -> usize {
+  const TOTAL_DISK_SPACE : usize = 70000000usize;
+  const REQUIRED_DISK_SPACE : usize = 30000000usize;
+  let unused_disk_space = TOTAL_DISK_SPACE - *dirs.get("/").unwrap();
+  assert!(unused_disk_space < REQUIRED_DISK_SPACE);
+
+  let min_space_to_free = REQUIRED_DISK_SPACE - unused_disk_space;
+  let mut candidate_dir_size = std::usize::MAX;
   for entry in dirs {
-    if entry.1 <= 100000 {
-      part_1 += entry.1;
+    let dir_size = *(entry.1);
+    if dir_size >= min_space_to_free {
+      #[cfg(debug_assertions)]
+      println!("candidate dir {:?}", entry);
+
+      candidate_dir_size = cmp::min(candidate_dir_size, dir_size);
     }
   }
-  println!("part 1: {}", part_1);
+
+  candidate_dir_size
+}
+
+fn sum_small_dirs(dirs : &HashMap<String, usize>) -> usize {
+  const MAX_DIR_SIZE : usize = 100000;
+  let mut dir_size_sum = 0usize;
+  for entry in dirs {
+    #[cfg(debug_assertions)]
+    println!("directory: {:?}", entry);
+
+    if *(entry.1) <= MAX_DIR_SIZE {
+      dir_size_sum += entry.1;
+    }
+  }
+
+  dir_size_sum
+}
+
+fn main() {
+  let dirs = parse_commands(io::stdin().lines());
+
+  let result = sum_small_dirs(&dirs);
+  println!("part 1: {}", result);
+
+  let result = find_target_dir_size(&dirs);
+  println!("part 2: {}", result);
 }
