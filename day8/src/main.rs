@@ -86,9 +86,69 @@ fn trees_visible_from_perimiter(grid : &Vec<Vec<u8>>) -> usize {
   visible
 }
 
+fn scenic_score(grid : &Vec<Vec<u8>>) -> usize {
+  let mut max_scenic_score = 0usize;
+
+  let rows = grid.len();
+  let cols = grid[0].len();
+
+  for row in 0..rows {
+    assert_eq!(cols, grid[row].len());
+    for col in 0..cols {
+
+      let mut visible_left = 0;
+      for x in (0..col).rev() {
+        visible_left += 1;
+        if grid[row][x] >= grid[row][col] {
+          break;
+        }
+      }
+
+      let mut visible_right = 0;
+      for x in col+1..cols {
+        visible_right += 1;
+        if grid[row][x] >= grid[row][col] {
+          break;
+        }
+      }
+
+      let mut visible_top = 0;
+      for y in (0..row).rev() {
+        visible_top += 1;
+        if grid[y][col] >= grid[row][col] {
+          break;
+        }
+      }
+
+      let mut visible_bottom = 0;
+      for y in row+1..rows {
+        visible_bottom +=1;
+        if grid[y][col] >= grid[row][col] {
+          break;
+        }
+      }
+
+      let scenic_score = visible_left * visible_right * visible_top * visible_bottom;
+
+      #[cfg(debug_assertions)]
+      print!("{},", scenic_score);
+
+      max_scenic_score = cmp::max(max_scenic_score, scenic_score);
+    }
+
+    #[cfg(debug_assertions)]
+    println!("");
+  }
+
+  max_scenic_score
+}
+
 fn main() {
   let grid = parse_grid(io::stdin().lines());
 
   let result = trees_visible_from_perimiter(&grid);
   println!("part 1: {}", result);
+
+  let result = scenic_score(&grid);
+  println!("part 2: {}", result);
 }
