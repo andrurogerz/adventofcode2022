@@ -35,13 +35,18 @@ fn parse_input(lines : impl Iterator<Item = io::Result<String>>) -> Vec<Instr> {
   instrs
 }
 
-fn execute(instrs : Vec<Instr>) -> i64 {
+fn execute(instrs : Vec<Instr>) -> (i64, String) {
+  const DISPLAY_COLS : usize = 40usize;
+  const DISPLAY_ROWS : usize = 7usize;
+
   let mut total_signal_strength = 0i64;
+  let mut display = String::with_capacity((DISPLAY_COLS + 1) * DISPLAY_ROWS);
 
   let mut pc = 0;
   let mut reg_x = 1i64;
   let mut instr = &Instr::Noop;
   let mut cycle_counter = 0usize;
+  let mut x_pos = 0usize;
 
   for cycle in 1..usize::MAX {
 
@@ -53,6 +58,13 @@ fn execute(instrs : Vec<Instr>) -> i64 {
 
       #[cfg(debug_assertions)]
       println!("signal strength: {} {} {}", cycle, reg_x, signal_strength);
+    }
+
+    let pixel = if (x_pos as i64 >= reg_x - 1) && (x_pos as i64 <= reg_x + 1) { '#' } else { '.' };
+    display.push(pixel);
+    x_pos = (x_pos + 1) % DISPLAY_COLS;
+    if x_pos == 0 {
+      display.push('\n');
     }
 
     if cycle_counter == 0 {
@@ -83,11 +95,12 @@ fn execute(instrs : Vec<Instr>) -> i64 {
     }
   }
 
-  total_signal_strength
+  (total_signal_strength, display)
 }
 
 fn main() {
   let instrs = parse_input(io::stdin().lines());
-  let result = execute(instrs);
-  println!("part 1: {}", result);
+  let (total_signal_strength, display) = execute(instrs);
+  println!("part 1: {}", total_signal_strength);
+  println!("part 2:\n{}", display);
 }
