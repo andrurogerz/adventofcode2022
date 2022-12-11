@@ -9,10 +9,20 @@ enum Operation {
   Pow(usize),
 }
 
+impl Operation {
+  fn apply(&self, arg : usize) -> usize {
+    match *self {
+      Self::Add(val) => arg + val,
+      Self::Mult(val) => arg * val,
+      Self::Pow(val) => arg.pow(val.try_into().unwrap()),
+    }
+  }
+}
+
 #[derive(Debug)]
 struct Monkey {
   inspection_count : usize,
-  items : Vec<Item>,
+  items : Vec<usize>,
   op : Operation,
   test_divisor : usize,
   if_true_target : usize,
@@ -124,11 +134,80 @@ fn parse_input(lines : &mut impl Iterator<Item = io::Result<String>>) -> Vec<Mon
   monkeys
 }
 
-fn main() {
-  let monkeys = parse_input(&mut io::stdin().lines());
+fn execute_round(monkeys : &mut Vec<Monkey>) {
+
+  for i in 0..monkeys.len() {
+    let monkey = &mut monkeys[i];
+    let mut throws = Vec::new();
+
+    while !monkey.items.is_empty() {
+      monkey.inspection_count += 1;
+      let old_item = monkey.items.pop().unwrap();
+      let new_item = monkey.op.apply(old_item) / 3;
+
+      let target_monkey;
+      if new_item % monkey.test_divisor == 0 {
+        target_monkey = monkey.if_true_target;
+
+      } else {
+        target_monkey = monkey.if_false_target;
+      }
+
+      assert!(target_monkey != i);
+
+      throws.push((target_monkey, new_item));
+    }
+
+    // Apply throw operations.
+    while !throws.is_empty() {
+      let throw = throws.pop().unwrap();
+      monkeys[throw.0].items.push(throw.1);
+    }
+  }
+}
+
+fn calculate_monkey_business(monkeys : &Vec<Monkey>) -> usize {
+  let mut first_place = &monkeys[0];
+  let mut second_place = &monkeys[1];
+  for i in 2..monkeys.len() {
+    let monkey = &monkeys[i];
+    if monkey.inspection_count > first_place.inspection_count {
+      second_place = first_place;
+      first_place = &monkey;
+    } else if monkey.inspection_count > second_place.inspection_count {
+      second_place = &monkey;
+    }
+  }
 
   #[cfg(debug_assertions)]
-  for monkey in monkeys {
-    println!("{:?}", monkey);
+  println!("first place: {:?}\nsecond_place: {:?}", first_place, second_place);
+
+  first_place.inspection_count * second_place.inspection_count
+}
+
+fn main() {
+  let mut monkeys = parse_input(&mut io::stdin().lines());
+
+  #[cfg(debug_assertions)]
+  {
+    println!("starting state:");
+    for monkey in &monkeys {
+      println!("{:?}", monkey);
+    }
   }
+
+  for _ in 1..=20 {
+    execute_round(&mut monkeys);
+
+    #[cfg(debug_assertions)]
+    {
+      println!("end of round state:");
+      for monkey in &monkeys {
+        println!("{:?}", monkey);
+      }
+    }
+  }
+
+  let result = calculate_monkey_business(&monkeys);
+  println!("part 1: {}", result);
 }
