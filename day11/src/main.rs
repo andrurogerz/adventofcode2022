@@ -167,22 +167,25 @@ fn execute_round(monkeys : &mut Vec<Monkey>, lcm : usize, worry_divisor : usize)
 }
 
 fn calculate_monkey_business(monkeys : &Vec<Monkey>) -> usize {
-  let mut first_place = &monkeys[0];
-  let mut second_place = &monkeys[1];
-  for i in 2..monkeys.len() {
-    let monkey = &monkeys[i];
-    if monkey.inspection_count > first_place.inspection_count {
+  assert!(monkeys.len() > 1);
+
+  let mut first_place = 0usize;
+  let mut second_place = 0usize;
+
+  for monkey in monkeys {
+    let value = monkey.inspection_count;
+    if value > first_place {
       second_place = first_place;
-      first_place = &monkey;
-    } else if monkey.inspection_count > second_place.inspection_count {
-      second_place = &monkey;
+      first_place = value;
+    } else if value > second_place {
+      second_place = value;
     }
   }
 
   #[cfg(debug_assertions)]
-  println!("first place: {:?}\nsecond_place: {:?}", first_place, second_place);
+  println!("first place: {}\nsecond_place: {}", first_place, second_place);
 
-  first_place.inspection_count * second_place.inspection_count
+  first_place * second_place
 }
 
 fn calculate_lcm(values : &Vec<usize>) -> usize {
