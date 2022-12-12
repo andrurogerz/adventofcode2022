@@ -1,6 +1,10 @@
+use std::cmp::min;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::io;
+
+const START : char = 'S';
+const END : char = 'E';
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct Square {
@@ -8,21 +12,25 @@ struct Square {
   y : usize,
 }
 
-fn parse_topography(lines : &mut impl Iterator<Item = io::Result<String>>) -> (Square, Vec<Vec<char>>) {
+fn parse_topography(lines : &mut impl Iterator<Item = io::Result<String>>) -> (Square, Vec<Square>, Vec<Vec<char>>) {
   let mut map : Vec<Vec<char>> = Vec::new();
   let mut start = Square { x : usize::MAX, y : usize::MAX };
-  let mut end = Square { x : 0, y : 0 };
+  let mut potential_start_squares : Vec<Square> = Vec::new();
+  let mut end = Square { x : usize::MAX, y : usize::MAX };
 
   let mut y = 0;
   for line in lines {
     let row : Vec<char> = line.unwrap().chars().collect();
     for x in 0..row.len() {
       let ch = row[x];
-      assert!((ch as u8 >= 'a' as u8 && ch as u8 <= 'z' as u8) || ch == 'S' || ch == 'E');
-      if ch == 'S' {
+      assert!((ch as u8 >= 'a' as u8 && ch as u8 <= 'z' as u8) || ch == START || ch == END);
+
+      if ch == START {
         start = Square { x, y };
-      } else if ch == 'E' {
+      } else if ch == END {
         end = Square { x, y };
+      } else if ch == 'a' {
+        potential_start_squares.push(Square { x, y });
       }
     }
 
@@ -39,10 +47,20 @@ fn parse_topography(lines : &mut impl Iterator<Item = io::Result<String>>) -> (S
   assert!(start.x != usize::MAX);
   assert!(end.x != usize::MAX);
 
-  (start, map)
+  (start, potential_start_squares, map)
 }
 
-fn find_shortest_path_len(map : &Vec<Vec<char>>, start : Square) -> usize {
+fn height_of_square(map : &Vec<Vec<char>>, square : Square) -> usize {
+  assert!(square.y < map.len());
+  assert!(square.x < map[0].len());
+  match map[square.y][square.x] {
+    START => 'a' as usize,
+    END => 'z' as usize,
+    _ => map[square.y][square.x] as usize,
+  }
+}
+
+fn find_shortest_path_len(map : &Vec<Vec<char>>, start_squares : Vec<Square>) -> usize {
   assert!(!map.is_empty());
   assert!(!map[0].is_empty());
 
@@ -52,8 +70,6 @@ fn find_shortest_path_len(map : &Vec<Vec<char>>, start : Square) -> usize {
   #[cfg(debug_assertions)]
   println!("cols:{}, rows:{}", col_count, row_count);
 
-  let mut debug_steps = usize::MAX;
-
   // Treat the map as an tree where every node is a reachable square on the map.
   // Each node's children is the set of squares reachable from it that have not
   // already been seen. We perform a breadth-first search of the tree to find
@@ -62,7 +78,10 @@ fn find_shortest_path_len(map : &Vec<Vec<char>>, start : Square) -> usize {
   // number of moves it took to reach it (which is the least possible for that
   // square).
   let mut possible_moves : VecDeque<(usize, Square)> = VecDeque::new();
-  possible_moves.push_back((0usize, start));
+  for square in start_squares {
+    assert_eq!(height_of_square(&map, square), 'a' as usize);
+    possible_moves.push_back((0usize, square));
+  }
 
   // The set of squares already visited so we don't bother visiting them a
   // second time. If a square was reachable in N moves, there is no point in
@@ -71,69 +90,56 @@ fn find_shortest_path_len(map : &Vec<Vec<char>>, start : Square) -> usize {
   let mut visited_squares : HashSet<Square> = HashSet::new();
 
   while !possible_moves.is_empty() {
-    let (count, dest) = possible_moves.pop_front().unwrap();
+    let (move_count, current_square) = possible_moves.pop_front().unwrap();
 
     // Have we reached the end?
-    if map[dest.y][dest.x] == 'E' {
-      return count;
+    if map[current_square.y][current_square.x] == END {
+      return move_count;
     }
 
-    // Explore possible moves from destination
+    // Explore possible moves from the current square.
     let mut adjacent_squares = Vec::with_capacity(4);
 
-    if dest.x > 0 {
-      adjacent_squares.push(Square { x : dest.x - 1, y : dest.y });
+    // Left
+    if current_square.x > 0 {
+      adjacent_squares.push(Square { x : current_square.x - 1, y : current_square.y });
     }
 
-    if dest.x < col_count - 1 {
-      adjacent_squares.push(Square { x : dest.x + 1, y : dest.y });
+    // Right
+    if current_square.x < col_count - 1 {
+      adjacent_squares.push(Square { x : current_square.x + 1, y : current_square.y });
     }
 
-    if dest.y > 0 {
-      adjacent_squares.push(Square { x : dest.x, y : dest.y - 1 });
+    // Up
+    if current_square.y > 0 {
+      adjacent_squares.push(Square { x : current_square.x, y : current_square.y - 1 });
     }
 
-    if dest.y < row_count - 1 {
-      adjacent_squares.push(Square { x : dest.x, y : dest.y + 1 });
+    // Down
+    if current_square.y < row_count - 1 {
+      adjacent_squares.push(Square { x : current_square.x, y : current_square.y + 1 });
     }
-
-    let dest_height = match map[dest.y][dest.x] {
-      'S' => 'a' as usize,
-      'E' => 'z' as usize,
-      _ => map[dest.y][dest.x] as usize,
-    };
 
     #[cfg(debug_assertions)]
-    println!("moves from {:?}:", dest);
+    println!("moves from {:?}:", current_square);
 
-    for next in adjacent_squares {
-      if visited_squares.contains(&next) {
+    for next_square in adjacent_squares {
+      if visited_squares.contains(&next_square) {
         #[cfg(debug_assertions)]
-        println!("    skip {:?} (visited)", next);
+        println!("    skip {:?} (visited)", next_square);
         continue;
       }
 
-      let next_height = match map[next.y][next.x] {
-        'S' => 'a' as usize,
-        'E' => 'z' as usize,
-        _ => map[next.y][next.x] as usize,
-      };
-
-      if next_height <= dest_height + 1 {
+      if height_of_square(map, next_square) <= height_of_square(map, current_square) + 1 {
         #[cfg(debug_assertions)]
-        println!("    candidate {:?}", next);
-        possible_moves.push_back((count + 1, next));
-        visited_squares.insert(next);
+        println!("    candidate {:?}", next_square);
+        possible_moves.push_back((move_count + 1, next_square));
+        visited_squares.insert(next_square);
 
       } else {
         #[cfg(debug_assertions)]
-        println!("    skip {:?} (too high)", next);
+        println!("    skip {:?} (too high)", next_square);
       }
-    }
-
-    debug_steps -= 1;
-    if debug_steps == 0 {
-      break;
     }
   }
 
@@ -141,13 +147,16 @@ fn find_shortest_path_len(map : &Vec<Vec<char>>, start : Square) -> usize {
 }
 
 fn main() {
-  let (start, map) = parse_topography(&mut io::stdin().lines());
+  let (start, potential_start_squares, map) = parse_topography(&mut io::stdin().lines());
 
   #[cfg(debug_assertions)]
   for row in &map {
     println!("{:?}", row);
   }
 
-  let result = find_shortest_path_len(&map, start);
-  println!("part 1: {}", result);
+  let part_1 = find_shortest_path_len(&map, vec![start]);
+  println!("part 1: {}", part_1);
+
+  let part_2 = find_shortest_path_len(&map, potential_start_squares);
+  println!("part 2: {}", min(part_1, part_2));
 }
