@@ -2,7 +2,7 @@ use std::io;
 
 use usize as Item;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum Operation {
   Add(usize),
   Mult(usize),
@@ -19,7 +19,7 @@ impl Operation {
   }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Monkey {
   inspection_count : usize,
   items : Vec<usize>,
@@ -134,7 +134,7 @@ fn parse_input(lines : &mut impl Iterator<Item = io::Result<String>>) -> Vec<Mon
   monkeys
 }
 
-fn execute_round(monkeys : &mut Vec<Monkey>) {
+fn execute_round(monkeys : &mut Vec<Monkey>, lcm : usize, worry_divisor : usize) {
 
   for i in 0..monkeys.len() {
     let monkey = &mut monkeys[i];
@@ -143,7 +143,7 @@ fn execute_round(monkeys : &mut Vec<Monkey>) {
     while !monkey.items.is_empty() {
       monkey.inspection_count += 1;
       let old_item = monkey.items.pop().unwrap();
-      let new_item = monkey.op.apply(old_item) / 3;
+      let new_item = (monkey.op.apply(old_item) / worry_divisor) % lcm;
 
       let target_monkey;
       if new_item % monkey.test_divisor == 0 {
@@ -185,8 +185,38 @@ fn calculate_monkey_business(monkeys : &Vec<Monkey>) -> usize {
   first_place.inspection_count * second_place.inspection_count
 }
 
-fn main() {
-  let mut monkeys = parse_input(&mut io::stdin().lines());
+fn calculate_lcm(values : &Vec<usize>) -> usize {
+  assert!(!values.is_empty());
+
+  // Brute-force least common multiple calculation.
+  for i in 1..usize::MAX {
+    let lcm_candidate = values[0] * i;
+    for j in 1..values.len() {
+      if lcm_candidate % values[j] != 0 {
+        break;
+      }
+
+      if j + 1 == values.len() {
+        #[cfg(debug_assertions)]
+        println!("found lcm: {}", lcm_candidate);
+        return lcm_candidate;
+      }
+    }
+  }
+  unreachable!();
+}
+
+fn execute_rounds(input : &Vec<Monkey>, round_count : usize, worry_divisor : usize) -> usize {
+  let mut monkeys = input.clone();
+
+  // Find the least common multiple of all the divisors so we can keep our worry
+  // level from growing exponentially.
+  let mut divisors = Vec::with_capacity(monkeys.len() + 1);
+  for monkey in &monkeys {
+    divisors.push(monkey.test_divisor);
+  }
+  divisors.push(worry_divisor);
+  let lcm = calculate_lcm(&divisors);
 
   #[cfg(debug_assertions)]
   {
@@ -196,8 +226,8 @@ fn main() {
     }
   }
 
-  for _ in 1..=20 {
-    execute_round(&mut monkeys);
+  for _ in 1..=round_count {
+    execute_round(&mut monkeys, lcm, worry_divisor);
 
     #[cfg(debug_assertions)]
     {
@@ -208,6 +238,15 @@ fn main() {
     }
   }
 
-  let result = calculate_monkey_business(&monkeys);
+  calculate_monkey_business(&monkeys)
+}
+
+fn main() {
+  let input = parse_input(&mut io::stdin().lines());
+
+  let result = execute_rounds(&input, 20, 3);
   println!("part 1: {}", result);
+
+  let result = execute_rounds(&input, 10000, 1);
+  println!("part 2: {}", result);
 }
