@@ -107,11 +107,11 @@ fn parse_packet(packet_desc : &str) -> Packet {
   packet
 }
 
-fn parse_input(lines : &mut impl Iterator<Item = io::Result<String>>) -> Vec<(Packet, Packet)> {
+fn parse_input(lines : &mut impl Iterator<Item = io::Result<String>>) -> Vec<[Packet; 2]> {
   let mut packet_pairs = Vec::new();
 
   loop {
-    packet_pairs.push((
+    packet_pairs.push([
       match lines.next() {
         Some(Ok(left)) => parse_packet(&left),
         Some(Err(err)) => panic!("fatal error {}", err),
@@ -122,7 +122,7 @@ fn parse_input(lines : &mut impl Iterator<Item = io::Result<String>>) -> Vec<(Pa
         Some(Err(err)) => panic!("fatal error {}", err),
         None => panic!("malformed input"),
       }
-    ));
+    ]);
 
     match lines.next() {
       Some(Ok(val)) => assert!(val.is_empty()),
@@ -134,10 +134,10 @@ fn parse_input(lines : &mut impl Iterator<Item = io::Result<String>>) -> Vec<(Pa
   packet_pairs
 }
 
-fn sum_ordered_packet_indices(packet_pairs : &Vec<(Packet, Packet)>) -> usize {
+fn sum_ordered_packet_indices(packet_pairs : &Vec<[Packet; 2]>) -> usize {
   let mut result = 0usize;
   let mut pair_index = 1usize;
-  for (left_packet, right_packet) in packet_pairs {
+  for [left_packet, right_packet] in packet_pairs {
     #[cfg(debug_assertions)]
     println!("packet pair {}:\n  {:?}\n  {:?}", pair_index, left_packet, right_packet);
 
@@ -153,55 +153,38 @@ fn sum_ordered_packet_indices(packet_pairs : &Vec<(Packet, Packet)>) -> usize {
   result
 }
 
-fn calculate_decoder_key(packet_pairs : &Vec<(Packet, Packet)>) -> usize {
+fn calculate_decoder_key(packet_pairs : &Vec<[Packet; 2]>) -> usize {
   assert!(packet_pairs.len() > 0);
 
-  // Sort the full set of packets. We could insert the decoder packets into
-  // this list before sorting them, but we'd have to do a final pass to locate
-  // them so it is a bit more efficient to sort the original packet list and
-  // find the divider packet positions. Same runtime complexity regardless.
-  let mut packets = Vec::with_capacity(2 *packet_pairs.len());
-  for packet_pair in packet_pairs {
-    packets.push(&packet_pair.0);
-    packets.push(&packet_pair.1);
-  }
-  packets.sort();
-
-  #[cfg(debug_assertions)]
-  for packet in &packets {
-    println!("{:?}", packet);
-  }
-
-  let divider_packets = (
+  let divider_packets = [
     Packet::ValueList(vec![Packet::ValueList(vec![Packet::Value(2)])]),
     Packet::ValueList(vec![Packet::ValueList(vec![Packet::Value(6)])])
-  );
+  ];
 
-  let mut decoder_key = (0, 0);
-  let mut packet_index = 1;
-  for packet in &packets {
-    if decoder_key.0 == 0 && &divider_packets.0 < packet {
-      // Found the position where the first divider packet would be inserted.
-      decoder_key.0 = packet_index;
-      packet_index += 1;
+  // Count the number of keys that are less than each divider packet. Include
+  // the first divider packet when calculating the position the second (e.g.
+  // start from 2 instead of 1).
+  let mut decoder_key = [1usize, 2usize];
+  for pair in packet_pairs {
+    for packet in pair {
+      // None of the existing packets can match the divier packets.
+      assert!(packet != &divider_packets[0]);
+      assert!(packet != &divider_packets[1]);
+
+      if packet < &divider_packets[0] {
+        decoder_key[0] += 1;
+      }
+
+      if packet < &divider_packets[1] {
+        decoder_key[1] += 1;
+      }
     }
-
-    if &divider_packets.1 < packet {
-      // Found the position where the second divider packet would be inserted.
-      decoder_key.1 = packet_index;
-      break;
-    }
-
-    packet_index += 1;
   }
-
-  assert!(decoder_key.0 != 0);
-  assert!(decoder_key.1 != 0);
 
   #[cfg(debug_assertions)]
   println!("{:?}", decoder_key);
 
-  decoder_key.0 * decoder_key.1
+  decoder_key[0] * decoder_key[1]
 }
 
 fn main() {
