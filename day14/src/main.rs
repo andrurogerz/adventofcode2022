@@ -4,7 +4,7 @@ use std::error::Error;
 use std::fmt;
 use std::io;
 
-#[derive(Hash, Clone, Debug, Eq, PartialEq)]
+#[derive(Hash, Clone, Copy, Debug, Eq, PartialEq)]
 struct Position {
   x : usize,
   y : usize,
@@ -25,22 +25,27 @@ impl fmt::Debug for Grid {
 
     // Find the min non-empty X to start printing.
     let mut min_x = usize::MAX;
+    let mut max_x = 0usize;
     for y in 0..self.0.len() {
       for x in 0..self.0[0].len() {
         min_x = match self.0[y][x] {
           Contents::Empty => min_x,
           _ => cmp::min(min_x, x),
-        }
+        };
+        max_x = match self.0[y][x] {
+          Contents::Empty => max_x,
+          _ => cmp::max(max_x, x),
+        };
       }
     }
 
     // Print every row starting from min X.
     for y in 0..self.0.len() {
-      for x in min_x..self.0[0].len() {
+      for x in min_x..=max_x {
         write!(f, "{}", match self.0[y][x] {
           Contents::Empty => '.',
           Contents::Rock => '#',
-          Contents::Sand => '.',
+          Contents::Sand => 'o',
         })?;
       }
       writeln!(f, "")?;
@@ -114,7 +119,7 @@ fn parse_input(lines : &mut impl Iterator<Item = io::Result<String>>)
   for y in 0..=max_y {
 
     let mut row = Vec::with_capacity(max_x);
-    for x in 0..=max_x {
+    for x in 0..=(max_x * 2) {
       if rocks.contains(&Position { x, y }) {
         row.push(Contents::Rock);
       } else {
@@ -127,11 +132,63 @@ fn parse_input(lines : &mut impl Iterator<Item = io::Result<String>>)
   Ok(grid)
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-  let grid = parse_input(&mut io::stdin().lines())?;
+fn execute(grid : &mut Grid, sand_start : Position) -> usize {
+  assert!(grid.0.len() > 0);
+  assert!(grid.0[0].len() > 0);
+
+  let mut sand_unit_count = 0usize;
+  'outer: loop {
+
+    let mut sand_pos = sand_start;
+    'inner: loop {
+
+      let below_pos = Position { x : sand_pos.x, y : sand_pos.y + 1 };
+      if below_pos.y >= grid.0.len() {
+        break 'outer;
+      }
+
+      let next_sand_pos = match grid.0[below_pos.y][below_pos.x] {
+        Contents::Empty => below_pos,
+        _ => {
+          match grid.0[below_pos.y][below_pos.x - 1] {
+            Contents::Empty => Position { x : below_pos.x - 1, y : below_pos.y },
+            _ => {
+              match grid.0[below_pos.y][below_pos.x + 1] {
+                Contents::Empty => Position { x : below_pos.x + 1, y : below_pos.y },
+                _ => sand_pos, // doesn't move
+              }
+            }
+          }
+        }
+      };
+
+      if next_sand_pos == sand_pos {
+        // Sand didn't move, so we're done with this one.
+        break 'inner;
+      }
+
+      sand_pos = next_sand_pos;
+    }
+
+    // Update the grid with sand contents.
+    sand_unit_count += 1;
+    grid.0[sand_pos.y][sand_pos.x] = Contents::Sand;
+  }
 
   #[cfg(debug_assertions)]
   println!("{:?}", grid);
+
+  sand_unit_count
+}
+
+fn main() -> Result<(), Box<dyn Error>> {
+  let mut grid = parse_input(&mut io::stdin().lines())?;
+
+  #[cfg(debug_assertions)]
+  println!("{:?}", grid);
+
+  let result = execute(&mut grid, Position { x : 500, y : 0 });
+  println!("part 1: {}", result);
 
   Ok(())
 }
