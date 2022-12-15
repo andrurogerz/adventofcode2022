@@ -17,31 +17,14 @@ enum Contents {
   Sand,
 }
 
+#[derive(Clone)]
 struct Grid(Vec<Vec<Contents>>);
 
 // Debug pretty-print for a grid.
 impl fmt::Debug for Grid {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-
-    // Find the min non-empty X to start printing.
-    let mut min_x = usize::MAX;
-    let mut max_x = 0usize;
     for y in 0..self.0.len() {
-      for x in 0..self.0[0].len() {
-        min_x = match self.0[y][x] {
-          Contents::Empty => min_x,
-          _ => cmp::min(min_x, x),
-        };
-        max_x = match self.0[y][x] {
-          Contents::Empty => max_x,
-          _ => cmp::max(max_x, x),
-        };
-      }
-    }
-
-    // Print every row starting from min X.
-    for y in 0..self.0.len() {
-      for x in min_x..=max_x {
+      for x in 0..self.0[y].len() {
         write!(f, "{}", match self.0[y][x] {
           Contents::Empty => '.',
           Contents::Rock => '#',
@@ -53,6 +36,21 @@ impl fmt::Debug for Grid {
 
     fmt::Result::Ok(())
   }
+}
+
+fn add_floor(grid : &Grid) -> Grid {
+  assert!(grid.0.len() > 0);
+  assert!(grid.0[0].len() > 0);
+
+  let mut grid_with_floor = grid.clone();
+
+  // Add a row of empty space.
+  grid_with_floor.0.push(vec![Contents::Empty; grid.0[0].len()]);
+
+  // Add the floor.
+  grid_with_floor.0.push(vec![Contents::Rock; grid.0[0].len()]);
+
+  grid_with_floor
 }
 
 fn parse_input(lines : &mut impl Iterator<Item = io::Result<String>>)
@@ -132,7 +130,7 @@ fn parse_input(lines : &mut impl Iterator<Item = io::Result<String>>)
   Ok(grid)
 }
 
-fn execute(grid : &mut Grid, sand_start : Position) -> usize {
+fn do_fill(grid : &mut Grid, sand_start : Position) -> usize {
   assert!(grid.0.len() > 0);
   assert!(grid.0[0].len() > 0);
 
@@ -173,22 +171,40 @@ fn execute(grid : &mut Grid, sand_start : Position) -> usize {
     // Update the grid with sand contents.
     sand_unit_count += 1;
     grid.0[sand_pos.y][sand_pos.x] = Contents::Sand;
-  }
 
-  #[cfg(debug_assertions)]
-  println!("{:?}", grid);
+    if sand_pos == sand_start {
+      // Filled to sand start.
+      break 'outer;
+    }
+  }
 
   sand_unit_count
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
+  const SAND_START_POS : Position = Position { x : 500, y : 0 };
   let mut grid = parse_input(&mut io::stdin().lines())?;
+  let mut grid_with_floor = add_floor(&grid);
 
   #[cfg(debug_assertions)]
   println!("{:?}", grid);
 
-  let result = execute(&mut grid, Position { x : 500, y : 0 });
+  let result = do_fill(&mut grid, SAND_START_POS);
+
+  #[cfg(debug_assertions)]
+  println!("{:?}", grid);
+
   println!("part 1: {}", result);
+
+  #[cfg(debug_assertions)]
+  println!("{:?}", grid_with_floor);
+
+  let result = do_fill(&mut grid_with_floor, SAND_START_POS);
+
+  #[cfg(debug_assertions)]
+  println!("{:?}", grid_with_floor);
+
+  println!("part 2: {}", result);
 
   Ok(())
 }
