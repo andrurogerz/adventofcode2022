@@ -38,7 +38,7 @@ impl Grid {
     self.positions.insert(sensor_pos, beacon_pos);
   }
 
-  fn row_count_definitely_not_beacons(&self, row: i32) -> usize {
+  fn count_definitely_not_beacons_in_row(&self, row: i32) -> usize {
     let mut count = 0usize;
     for x in self.min.x..=self.max.x {
       let current_pos = Position { x, y: row };
@@ -65,12 +65,45 @@ impl Grid {
 
     count
   }
+
+  fn find_possible_beacons_in_range(&self, min: Position, max: Position) -> Vec<Position> {
+    assert!(min.x <= max.x);
+    assert!(min.y <= max.y);
+
+    let mut possible_beacons = Vec::new();
+
+    for y in min.y..=max.y {
+      let mut x = min.x;
+      while x <= max.x {
+        let mut next_x = x;
+        for (&sensor_pos, &beacon_pos) in &self.positions {
+          let max_sensor_range = sensor_pos.distance_from(&beacon_pos);
+          let dx: i32 = sensor_pos.x - x;
+          let dy: i32 = sensor_pos.y - y;
+          if dx.abs() + dy.abs() <= max_sensor_range {
+            // This point is within the range of the sensor.
+            next_x = cmp::max(next_x, 1 + sensor_pos.x + max_sensor_range - dy.abs());
+          }
+        }
+
+        if x == next_x {
+          // Found a point not within range of a sensor.
+          possible_beacons.push(Position { x, y });
+          break;
+        }
+
+        x = next_x;
+      }
+    }
+
+    possible_beacons
+  }
 }
 
 impl fmt::Debug for Grid {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     for y in self.min.y..=self.max.y {
-      print!("{0:4}: ", y);
+      write!(f, "{0:4}: ", y)?;
       for x in self.min.x..=self.max.x {
         let current_pos = Position { x, y };
         let mut ch = '?';
@@ -154,8 +187,29 @@ fn main() -> Result<(), Box<dyn Error>> {
   println!("{:?}", grid);
 
   const TEST_ROW : i32 = 2000000;
-  let result = grid.row_count_definitely_not_beacons(TEST_ROW);
+  let result = grid.count_definitely_not_beacons_in_row(TEST_ROW);
   println!("part 1: {}", result);
+
+  const MIN: Position = Position { x: 0, y: 0 };
+  const MAX: Position = Position { x: 4000000, y: 4000000 };
+  let possible_beacons = grid.find_possible_beacons_in_range(MIN, MAX);
+
+  #[cfg(debug_assertions)]
+  println!("{:?}", possible_beacons);
+
+  assert_eq!(1, possible_beacons.len());
+
+  #[cfg(debug_assertions)]
+  for (&sensor_pos, &beacon_pos) in &grid.positions {
+    let max_dist = sensor_pos.distance_from(&beacon_pos);
+    let actual_dist = sensor_pos.distance_from(&possible_beacons[0]);
+    assert!(actual_dist > max_dist);
+  }
+
+  let x = possible_beacons[0].x as usize;
+  let y = possible_beacons[0].y as usize;
+  let result = x * 4000000 + y;
+  println!("part 2: {}", result);
 
   Ok(())
 }
